@@ -18,11 +18,10 @@ function processSheet2021(data) {
 
 function processSheet1939(data) {
     const rows = [];
-    for (let i = 6; i < data.length; i++) {
+    for (let i = 1; i < data.length; i++) {
         const row = data[i];
         if (row[0] && row[0].toString().trim() && 
-            !row[0].toString().includes('всего') &&
-            row[0].toString().trim() !== 'этнос' &&
+            row[0].toString().trim() !== 'Этнос' &&
             row[0].toString().trim() !== '') {
             rows.push({
                 'Национальность': row[0]?.toString().trim() || '',
@@ -36,11 +35,13 @@ function processSheet1939(data) {
 
 function processSheet1959(data) {
     const rows = [];
-    for (let i = 6; i < data.length; i++) {
+    for (let i = 1; i < data.length; i++) {
         const row = data[i];
         if (row[0] && row[0].toString().trim() && 
-            !row[0].toString().includes('всего') &&
+            row[0].toString().trim() !== 'Этнос' &&
+            row[0].toString().trim() !== 'всего' &&
             row[0].toString().trim() !== 'этнос' &&
+            row[0].toString().trim() !== 'указали' &&
             row[0].toString().trim() !== '') {
             rows.push({
                 'Национальность': row[0]?.toString().trim() || '',
@@ -53,53 +54,67 @@ function processSheet1959(data) {
 }
 
 function processSheet1897(data) {
-    const rows = [];
-    let currentSection = '';
+    const languages = [];
+    const foreigners = [];
+    const religions = [];
     
-    for (let i = 0; i < data.length; i++) {
+    for (let i = 2; i < data.length; i++) {
         const row = data[i];
         if (!row || row.length === 0) continue;
         
-        const firstCell = row[0]?.toString().trim() || '';
+        const langGroup = row[0] ? row[0].toString().trim() : '';
+        const langName = row[1] ? row[1].toString().trim() : '';
+        const langCity = row[2];
+        const langCounty = row[3];
         
-        if (firstCell === 'Языки') {
-            currentSection = 'Языки';
-            continue;
+        const foreignCountry = row[5] ? row[5].toString().trim() : '';
+        const foreignCount = row[6];
+        
+        const religionName = row[8] ? row[8].toString().trim() : '';
+        const religionCity = row[9];
+        const religionCounty = row[10];
+        
+        if (langName && langName !== '' && langName !== 'Нижний' && langName !== 'уезд без города') {
+            languages.push({
+                'Группа': langGroup || '',
+                'Язык': langName,
+                'г. Нижний': langCity !== undefined && langCity !== '' ? langCity : '0',
+                'Уезд (без города)': langCounty !== undefined && langCounty !== '' ? langCounty : '0'
+            });
         }
         
-        if (currentSection === 'Языки' && i > 0 && row[0] && row[1]) {
-            const langGroup = row[0]?.toString().trim();
-            const langName = row[1]?.toString().trim();
-            const countCity = row[2]?.toString();
-            const countCounty = row[3]?.toString();
-            
-            if (langName && langName !== '' && langName !== 'Всего') {
-                rows.push({
-                    'Группа': langGroup || '',
-                    'Язык': langName,
-                    'г. Нижний': countCity || '0',
-                    'Уезд (без города)': countCounty || '0'
-                });
-            }
+        if (foreignCountry && foreignCountry !== '' && foreignCountry !== 'Страна' && foreignCountry !== 'Нижний') {
+            foreigners.push({
+                'Страна': foreignCountry,
+                'г. Нижний': foreignCount !== undefined && foreignCount !== '' ? foreignCount : '0'
+            });
+        }
+        
+        if (religionName && religionName !== '' && religionName !== 'Религия' && religionName !== 'Нижний' && religionName !== 'уезд без города') {
+            religions.push({
+                'Религия': religionName,
+                'г. Нижний': religionCity !== undefined && religionCity !== '' ? religionCity : '0',
+                'Уезд (без города)': religionCounty !== undefined && religionCounty !== '' ? religionCounty : '0'
+            });
         }
     }
     
-    return rows;
+    return { languages, foreigners, religions };
 }
 
 function calculateTotal2021(data) {
     let total = 0;
     for (const row of data) {
-        const num = parseInt(row['Численность']?.replace(/\s/g, ''));
+        const num = parseInt(row['Численность']?.toString().replace(/\s/g, ''));
         if (!isNaN(num)) total += num;
     }
     return total.toLocaleString();
 }
 
-function findTotalRow(data) {
+function findTotalRow1939(data) {
     const totalRow = data.find(r => r['Национальность'] === 'всего');
     if (totalRow && totalRow['Численность']) {
-        return totalRow['Численность'].replace(/\s/g, '');
+        return totalRow['Численность'].toString().replace(/\s/g, '');
     }
     return null;
 }
@@ -122,9 +137,9 @@ function renderTable(data, columns) {
     for (const row of data) {
         html += `<tr>`;
         for (const col of columns) {
-            let value = row[col] || '';
-            if (value === '0' || value === 0) value = '—';
-            html += `<td title="${value}">${value}</td>`;
+            let value = row[col] !== undefined && row[col] !== null ? row[col] : '';
+            if (value === 0 || value === '0') value = '—';
+            html += `<td>${value}</td>`;
         }
         html += `</tr>`;
     }
@@ -133,6 +148,42 @@ function renderTable(data, columns) {
             </table>`;
     
     return html;
+}
+
+function render1897Tabs(data) {
+    const { languages, foreigners, religions } = data;
+    
+    let tabsHtml = `
+        <div class="tabs-1897">
+            <button class="tab-btn active" data-tab="languages">🗣️ Языки</button>
+            <button class="tab-btn" data-tab="foreigners">🌍 Иностранцы</button>
+            <button class="tab-btn" data-tab="religions">⛪ Религии</button>
+        </div>
+        <div class="tab-content active" id="tab-languages">
+            ${renderTable(languages, ['Группа', 'Язык', 'г. Нижний', 'Уезд (без города)'])}
+        </div>
+        <div class="tab-content" id="tab-foreigners">
+            ${renderTable(foreigners, ['Страна', 'г. Нижний'])}
+        </div>
+        <div class="tab-content" id="tab-religions">
+            ${renderTable(religions, ['Религия', 'г. Нижний', 'Уезд (без города)'])}
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const tabs = document.querySelectorAll('.tab-btn');
+        for (const tab of tabs) {
+            tab.addEventListener('click', function() {
+                const tabId = this.dataset.tab;
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+            });
+        }
+    }, 0);
+    
+    return tabsHtml;
 }
 
 function updateProgressBar(activeYear) {
@@ -154,47 +205,48 @@ function displayYear(year) {
         return;
     }
     
-    let data, columns;
     let infoText = '';
     
     switch(year) {
         case '2021':
             const raw2021 = excelData['2021'] || [];
-            data = processSheet2021(raw2021);
-            columns = ['Национальность/Язык', 'Численность'];
-            const total2021 = calculateTotal2021(data);
+            const data2021 = processSheet2021(raw2021);
+            const total2021 = calculateTotal2021(data2021);
+            container.innerHTML = renderTable(data2021, ['Национальность/Язык', 'Численность']);
             infoText = `📅 2021 год — Всероссийская перепись населения | Всего указавших родной язык: ${total2021} чел.`;
             break;
             
         case '1939':
             const raw1939 = excelData['1939'] || [];
-            data = processSheet1939(raw1939);
-            columns = ['Национальность', 'Численность', 'Доля'];
-            const total1939 = findTotalRow(data);
+            let data1939 = processSheet1939(raw1939);
+            data1939 = data1939.filter(row => row['Национальность'] && row['Национальность'] !== '');
+            const total1939 = findTotalRow1939(data1939);
             if (total1939) {
                 infoText = `📅 1939 год — Всесоюзная перепись населения | Всего: ${parseInt(total1939).toLocaleString()} чел.`;
             } else {
                 infoText = `📅 1939 год — Всесоюзная перепись населения`;
             }
+            container.innerHTML = renderTable(data1939, ['Национальность', 'Численность', 'Доля']);
             break;
             
         case '1959':
             const raw1959 = excelData['1959'] || [];
-            data = processSheet1959(raw1959);
-            columns = ['Национальность', 'Численность', 'Доля'];
-            const total1959 = findTotalRow(data);
-            if (total1959) {
-                infoText = `📅 1959 год — Всесоюзная перепись населения | Всего: ${parseInt(total1959).toLocaleString()} чел.`;
+            let data1959 = processSheet1959(raw1959);
+            data1959 = data1959.filter(row => row['Национальность'] && row['Национальность'] !== '');
+            const total1959Row = data1959.find(r => r['Национальность'] === 'всего');
+            if (total1959Row) {
+                infoText = `📅 1959 год — Всесоюзная перепись населения | Всего: ${parseInt(total1959Row['Численность']).toLocaleString()} чел.`;
             } else {
                 infoText = `📅 1959 год — Всесоюзная перепись населения`;
             }
+            container.innerHTML = renderTable(data1959, ['Национальность', 'Численность', 'Доля']);
             break;
             
         case '1897':
             const raw1897 = excelData['1897'] || [];
-            data = processSheet1897(raw1897);
-            columns = ['Группа', 'Язык', 'г. Нижний', 'Уезд (без города)'];
-            infoText = `📅 1897 год — Первая всеобщая перепись Российской империи | Данные по языкам`;
+            const data1897 = processSheet1897(raw1897);
+            container.innerHTML = render1897Tabs(data1897);
+            infoText = `📅 1897 год — Первая всеобщая перепись Российской империи | Данные: языки, иностранцы, религии`;
             break;
             
         default:
@@ -202,17 +254,6 @@ function displayYear(year) {
             return;
     }
     
-    data = data.filter(row => {
-        return Object.values(row).some(v => v && v.toString().trim() !== '');
-    });
-    
-    if (data.length === 0) {
-        container.innerHTML = '<div class="error">📭 Нет данных для этого года</div>';
-        infoDiv.innerHTML = infoText;
-        return;
-    }
-    
-    container.innerHTML = renderTable(data, columns);
     infoDiv.innerHTML = infoText;
     
     const dots = document.querySelectorAll('.timeline-dot');
@@ -228,6 +269,19 @@ function displayYear(year) {
 }
 
 async function loadExcel() {
+    if (typeof XLSX === 'undefined') {
+        console.error('❌ Библиотека XLSX не загружена!');
+        const container = document.getElementById('table-container');
+        container.innerHTML = `
+            <div class="error">
+                <strong>⚠️ Ошибка загрузки библиотеки</strong><br><br>
+                Не удалось загрузить XLSX. Проверь интернет-соединение.<br>
+                Обнови страницу (F5)
+            </div>
+        `;
+        return false;
+    }
+    
     try {
         const response = await fetch('data/Data_table.xlsx');
         if (!response.ok) {
