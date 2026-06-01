@@ -1,14 +1,49 @@
 <!DOCTYPE html>
-<html lang="ru-RU">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/styles.css">
-    <title>Nizhniy Novgorod Timeline</title>
+    <title>Исторические переписи населения</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-    <header></header>
-    <body></body>
-    <footer></footer>
+    <div class="container">
+        <h1>📊 Исторические переписи населения</h1>
+        <div class="subtitle">Нижегородский край | Данные переписей 1897, 1939, 1959, 2021 гг.</div>
+        
+        <div id="table-container" class="table-wrapper">
+            <div class="loading">🔄 Загрузка данных...</div>
+        </div>
+        
+        <div class="timeline-slider">
+            <div class="timeline-line"></div>
+            <div class="timeline-dots">
+                <div class="timeline-dot" data-year="1897">
+                    <span class="dot-year">1897</span>
+                    <span class="dot-icon">🏰</span>
+                </div>
+                <div class="timeline-dot" data-year="1939">
+                    <span class="dot-year">1939</span>
+                    <span class="dot-icon">⚔️</span>
+                </div>
+                <div class="timeline-dot" data-year="1959">
+                    <span class="dot-year">1959</span>
+                    <span class="dot-icon">🚀</span>
+                </div>
+                <div class="timeline-dot" data-year="2021">
+                    <span class="dot-year">2021</span>
+                    <span class="dot-icon">💻</span>
+                </div>
+            </div>
+            <div class="timeline-progress"></div>
+        </div>
+        
+        <div id="info" class="info">
+            📌 Выбери год на таймлайне
+        </div>
+    </div>
+    
+    <script src="js/app.js"></script>
 </body>
 </html>
