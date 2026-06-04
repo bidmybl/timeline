@@ -1,5 +1,4 @@
 let excelData = null;
-let previousData = {};
 
 function processSheet2021(data) {
     const rows = [];
@@ -10,7 +9,7 @@ function processSheet2021(data) {
             !row[0].toString().includes('Указавшие')) {
             rows.push({
                 'Национальность/Язык': row[0]?.toString().trim() || '',
-                'Численность': row[1]?.toString() || '0'
+                'Численность': row[1]?.toString() || ''
             });
         }
     }
@@ -103,85 +102,27 @@ function processSheet1897(data) {
     return { languages, foreigners, religions };
 }
 
-function getEventsHTML(year) {
-    const events = {
-        '1897': [
-            { year: '1552', desc: 'Присоединение Казанского ханства', impact: '📈 Рост русского населения' },
-            { year: '1817', desc: 'Перенос ярмарки в Нижний Новгород', impact: '📈 Экономический рост, приток купцов' }
-        ],
-        '1939': [
-            { year: '1920-е', desc: 'Политика Коренизации', impact: '📈 Развитие национальных школ' },
-            { year: '1932', desc: 'Строительство завода ГАЗ', impact: '🔄 Массовый приток рабочих' },
-            { year: 'середина 1930-х', desc: 'Сворачивание Коренизации, начало Русификации', impact: '📉 Усиление русского языка' }
-        ],
-        '1959': [
-            { year: '1941-1945', desc: 'Великая Отечественная Война', impact: '🔄 Эвакуация заводов в Горький' },
-            { year: '1941', desc: 'Миграция беженцев в Горький', impact: '🔄 Резкий рост населения' },
-            { year: '1959', desc: 'Статус Закрытого Города', impact: '📉 Ограничение въезда' }
-        ],
-        '2021': [
-            { year: '1960-1980-е', desc: 'Внутренняя миграция из сельских регионов', impact: '🔄 Урбанизация' },
-            { year: '1990-е', desc: 'Приток беженцев из зон конфликтов', impact: '🔄 Рост диаспор' },
-            { year: '1991', desc: 'Закон РФ "О языках народов РСФСР"', impact: '📈 Возрождение языков' },
-            { year: '2000-е', desc: 'Рост трудовых мигрантов', impact: '🔄 Увеличение узбеков, таджиков' }
-        ]
-    };
-    
-    const yearEvents = events[year] || [];
-    if (yearEvents.length === 0) return '';
-    
-    let html = '<div class="events-list">';
-    for (const event of yearEvents) {
-        html += `
-            <div class="event-item">
-                <span class="event-year">📅 ${event.year}</span>
-                <span class="event-desc">${event.desc}</span>
-                <span class="event-impact">${event.impact}</span>
-            </div>
-        `;
-    }
-    html += '</div>';
-    return html;
-}
-
-function formatNumber(num) {
-    if (num === '—' || num === 0) return '—';
-    const n = parseInt(String(num).replace(/\s/g, ''));
-    if (isNaN(n)) return num;
-    return n.toLocaleString();
-}
-
-function getArrow(currentVal, prevVal) {
-    if (!prevVal || prevVal === '0' || prevVal === '—') return '';
-    const current = parseInt(String(currentVal).replace(/\s/g, '')) || 0;
-    const prev = parseInt(String(prevVal).replace(/\s/g, '')) || 0;
-    if (prev === 0) return '';
-    
-    const change = ((current - prev) / prev * 100);
-    if (change > 5) return ' <span class="arrow-up">▲▲</span>';
-    if (change > 0) return ' <span class="arrow-up">▲</span>';
-    if (change < -5) return ' <span class="arrow-down">▼▼</span>';
-    if (change < 0) return ' <span class="arrow-down">▼</span>';
-    return ' <span class="arrow-equal">●</span>';
-}
-
-function saveToPrevious(year, data, idField, valueField) {
-    if (!previousData[year]) previousData[year] = {};
+function calculateTotal2021(data) {
+    let total = 0;
     for (const row of data) {
-        previousData[year][row[idField]] = row[valueField];
+        const num = parseInt(row['Численность']?.toString().replace(/\s/g, ''));
+        if (!isNaN(num)) total += num;
     }
+    return total.toLocaleString();
 }
 
-function renderTable(data, columns, year, idField, valueField) {
+function findTotalRow1939(data) {
+    const totalRow = data.find(r => r['Национальность'] === 'всего');
+    if (totalRow && totalRow['Численность']) {
+        return totalRow['Численность'].toString().replace(/\s/g, '');
+    }
+    return null;
+}
+
+function renderTable(data, columns) {
     if (!data || data.length === 0) {
         return `<div class="error">📭 Нет данных для отображения</div>`;
     }
-    
-    const sortedData = [...data].sort((a, b) => {
-        const aVal = parseInt(String(a[valueField]).replace(/\s/g, '')) || 0;
-        const bVal = parseInt(String(b[valueField]).replace(/\s/g, '')) || 0;
-        return bVal - aVal;
-    });
     
     let html = `<table class="data-table">
                 <thead>
@@ -193,27 +134,12 @@ function renderTable(data, columns, year, idField, valueField) {
                 </thead>
                 <tbody>`;
     
-    for (const row of sortedData) {
-        const idValue = row[idField];
-        let currentValue = row[valueField];
-        const prevValue = previousData[year] ? previousData[year][idValue] : null;
-        
-        let arrow = '';
-        if (year !== '1897') {
-            arrow = getArrow(currentValue, prevValue);
-        }
-        
-        const formattedValue = formatNumber(currentValue);
-        
+    for (const row of data) {
         html += `<tr>`;
         for (const col of columns) {
             let value = row[col] !== undefined && row[col] !== null ? row[col] : '';
-            if (value === '0' || value === 0) value = '—';
-            if (col === valueField || (col === 'Численность' && valueField === 'Численность')) {
-                html += `<td>${formattedValue}${arrow}</td>`;
-            } else {
-                html += `<td>${value}</td>`;
-            }
+            if (value === 0 || value === '0') value = '—';
+            html += `<td>${value}</td>`;
         }
         html += `</tr>`;
     }
@@ -221,20 +147,7 @@ function renderTable(data, columns, year, idField, valueField) {
     html += `</tbody>
             </table>`;
     
-    saveToPrevious(year, data, idField, valueField);
-    
     return html;
-}
-
-function renderTable1897(data, type) {
-    if (type === 'languages') {
-        return renderTable(data.languages, ['Группа', 'Язык', 'г. Нижний', 'Уезд (без города)'], '1897', 'Язык', 'г. Нижний');
-    } else if (type === 'foreigners') {
-        return renderTable(data.foreigners, ['Страна', 'г. Нижний'], '1897', 'Страна', 'г. Нижний');
-    } else if (type === 'religions') {
-        return renderTable(data.religions, ['Религия', 'г. Нижний', 'Уезд (без города)'], '1897', 'Религия', 'г. Нижний');
-    }
-    return '<div class="error">Нет данных</div>';
 }
 
 function render1897Tabs(data) {
@@ -242,33 +155,33 @@ function render1897Tabs(data) {
     
     let tabsHtml = `
         <div class="tabs-1897">
-            <button class="tab-btn active" data-tab="languages">🗣️ Языки (${languages.length})</button>
-            <button class="tab-btn" data-tab="foreigners">🌍 Иностранцы (${foreigners.length})</button>
-            <button class="tab-btn" data-tab="religions">⛪ Религии (${religions.length})</button>
+            <button class="tab-btn active" data-tab="languages">🗣️ Языки</button>
+            <button class="tab-btn" data-tab="foreigners">🌍 Иностранцы</button>
+            <button class="tab-btn" data-tab="religions">⛪ Религии</button>
         </div>
         <div class="tab-content active" id="tab-languages">
-            ${renderTable1897(data, 'languages')}
+            ${renderTable(languages, ['Группа', 'Язык', 'г. Нижний', 'Уезд (без города)'])}
         </div>
         <div class="tab-content" id="tab-foreigners">
-            ${renderTable1897(data, 'foreigners')}
+            ${renderTable(foreigners, ['Страна', 'г. Нижний'])}
         </div>
         <div class="tab-content" id="tab-religions">
-            ${renderTable1897(data, 'religions')}
+            ${renderTable(religions, ['Религия', 'г. Нижний', 'Уезд (без города)'])}
         </div>
     `;
     
     setTimeout(() => {
-        const btns = document.querySelectorAll('.tab-btn');
-        for (const btn of btns) {
-            btn.addEventListener('click', function() {
+        const tabs = document.querySelectorAll('.tab-btn');
+        for (const tab of tabs) {
+            tab.addEventListener('click', function() {
                 const tabId = this.dataset.tab;
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
                 this.classList.add('active');
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
                 document.getElementById(`tab-${tabId}`).classList.add('active');
             });
         }
-    }, 50);
+    }, 0);
     
     return tabsHtml;
 }
@@ -292,49 +205,47 @@ function displayYear(year) {
         return;
     }
     
-    let mainContent = '';
     let infoText = '';
-    let eventsHTML = getEventsHTML(year);
     
     switch(year) {
         case '2021':
             const raw2021 = excelData['2021'] || [];
             const data2021 = processSheet2021(raw2021);
-            const total2021 = data2021.reduce((sum, row) => sum + (parseInt(String(row['Численность']).replace(/\s/g, '')) || 0), 0);
-            mainContent = renderTable(data2021, ['Национальность/Язык', 'Численность'], '2021', 'Национальность/Язык', 'Численность');
-            infoText = `📅 2021 год — Всероссийская перепись населения | Всего указавших родной язык: ${total2021.toLocaleString()} чел.`;
+            const total2021 = calculateTotal2021(data2021);
+            container.innerHTML = renderTable(data2021, ['Национальность/Язык', 'Численность']);
+            infoText = `📅 2021 год — Всероссийская перепись населения | Всего указавших родной язык: ${total2021} чел.`;
             break;
             
         case '1939':
             const raw1939 = excelData['1939'] || [];
             let data1939 = processSheet1939(raw1939);
-            data1939 = data1939.filter(row => row['Национальность'] && row['Национальность'] !== '' && row['Национальность'] !== 'всего');
-            const total1939Row = processSheet1939(raw1939).find(r => r['Национальность'] === 'всего');
-            if (total1939Row) {
-                infoText = `📅 1939 год — Всесоюзная перепись населения | Всего: ${parseInt(String(total1939Row['Численность']).replace(/\s/g, '')).toLocaleString()} чел.`;
+            data1939 = data1939.filter(row => row['Национальность'] && row['Национальность'] !== '');
+            const total1939 = findTotalRow1939(data1939);
+            if (total1939) {
+                infoText = `📅 1939 год — Всесоюзная перепись населения | Всего: ${parseInt(total1939).toLocaleString()} чел.`;
             } else {
                 infoText = `📅 1939 год — Всесоюзная перепись населения`;
             }
-            mainContent = renderTable(data1939, ['Национальность', 'Численность', 'Доля'], '1939', 'Национальность', 'Численность');
+            container.innerHTML = renderTable(data1939, ['Национальность', 'Численность', 'Доля']);
             break;
             
         case '1959':
             const raw1959 = excelData['1959'] || [];
             let data1959 = processSheet1959(raw1959);
-            data1959 = data1959.filter(row => row['Национальность'] && row['Национальность'] !== '' && row['Национальность'] !== 'всего');
-            const total1959Row = processSheet1959(raw1959).find(r => r['Национальность'] === 'всего');
+            data1959 = data1959.filter(row => row['Национальность'] && row['Национальность'] !== '');
+            const total1959Row = data1959.find(r => r['Национальность'] === 'всего');
             if (total1959Row) {
-                infoText = `📅 1959 год — Всесоюзная перепись населения | Всего: ${parseInt(String(total1959Row['Численность']).replace(/\s/g, '')).toLocaleString()} чел.`;
+                infoText = `📅 1959 год — Всесоюзная перепись населения | Всего: ${parseInt(total1959Row['Численность']).toLocaleString()} чел.`;
             } else {
                 infoText = `📅 1959 год — Всесоюзная перепись населения`;
             }
-            mainContent = renderTable(data1959, ['Национальность', 'Численность', 'Доля'], '1959', 'Национальность', 'Численность');
+            container.innerHTML = renderTable(data1959, ['Национальность', 'Численность', 'Доля']);
             break;
             
         case '1897':
             const raw1897 = excelData['1897'] || [];
             const data1897 = processSheet1897(raw1897);
-            mainContent = render1897Tabs(data1897);
+            container.innerHTML = render1897Tabs(data1897);
             infoText = `📅 1897 год — Первая всеобщая перепись Российской империи | Данные: языки, иностранцы, религии`;
             break;
             
@@ -343,14 +254,6 @@ function displayYear(year) {
             return;
     }
     
-    const fullContent = `
-        <div class="main-table-wrapper">
-            ${mainContent}
-        </div>
-        ${eventsHTML ? `<div class="events-section">${eventsHTML}</div>` : ''}
-    `;
-    
-    container.innerHTML = fullContent;
     infoDiv.innerHTML = infoText;
     
     const dots = document.querySelectorAll('.timeline-dot');
