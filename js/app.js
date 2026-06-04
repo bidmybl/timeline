@@ -341,4 +341,93 @@ async function init() {
     }
 }
 
+
+
+
+function getEventsForYear(year) {
+    const events = {
+        '1897': [
+            { year: '1552', desc: 'Присоединение Казанского ханства' },
+            { year: '1817', desc: 'Перенос ярмарки в Нижний Новгород' }
+        ],
+        '1939': [
+            { year: '1920-е', desc: 'Политика коренизации' },
+            { year: '1932', desc: 'Строительство завода ГАЗ (Первая пятилетка)' },
+            { year: 'середина 1930-х', desc: 'Сворачивание политики коренизации, начало политики русификации' }
+        ],
+        '1959': [
+            { year: '1941-1945', desc: 'Великая Отечественная война' },
+            { year: '1941', desc: 'Миграция беженцев из оккупированных регионов в Горький' },
+            { year: '1959', desc: 'Статус закрытого города' }
+        ],
+        '2021': [
+            { year: '1960-1980-е', desc: 'Внутренняя миграция из сельских регионов' },
+            { year: '1990-е', desc: 'Приток беженцев из зон межэтнических конфликтов (Нагорный Карабах, Приднестровье, Абхазия, Чечня)' },
+            { year: '1991', desc: 'Закон РФ "О языках народов РСФСР"' },
+            { year: '2000-е', desc: 'Рост количества трудовых мигрантов' }
+        ]
+    };
+    return events[year] || [];
+}
+
+function renderEvents(year) {
+    const events = getEventsForYear(year);
+    if (events.length === 0) {
+        return '<div class="events-list"><div class="error">📭 Нет исторических событий для этого периода</div></div>';
+    }
+    
+    let html = '<div class="events-list">';
+    for (const event of events) {
+        html += `
+            <div class="event-item">
+                <span class="event-year">📅 ${event.year}</span>
+                <span class="event-desc">${event.desc}</span>
+            </div>
+        `;
+    }
+    html += '</div>';
+    return html;
+}
+
+function updateEventsTab(year) {
+    const eventsContainer = document.getElementById('events-container');
+    if (eventsContainer) {
+        eventsContainer.innerHTML = renderEvents(year);
+    }
+}
+
+function setupMainTabs() {
+    const tabs = document.querySelectorAll('.main-tab-btn');
+    for (const tab of tabs) {
+        tab.addEventListener('click', function() {
+            const tabId = this.dataset.mainTab;
+            document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.main-tab-content').forEach(content => content.classList.remove('active'));
+            if (tabId === 'data') {
+                document.getElementById('data-tab').classList.add('active');
+            } else {
+                document.getElementById('events-tab').classList.add('active');
+                const currentYear = document.querySelector('.timeline-dot.active')?.dataset.year || '1897';
+                updateEventsTab(currentYear);
+            }
+        });
+    }
+}
+
+const originalDisplayYear = displayYear;
+displayYear = function(year) {
+    originalDisplayYear(year);
+    updateEventsTab(year);
+};
+
+if (typeof init === 'function') {
+    const originalInit = init;
+    init = async function() {
+        await originalInit();
+        setupMainTabs();
+        updateEventsTab('1897');
+    };
+}
+
 init();

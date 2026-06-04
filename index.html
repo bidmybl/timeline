@@ -13,8 +13,21 @@
         <h1>📊 Исторические переписи населения</h1>
         <div class="subtitle">Нижегородский край | Данные переписей 1897, 1939, 1959, 2021 гг.</div>
         
-        <div id="table-container" class="table-wrapper">
-            <div class="loading">🔄 Загрузка данных...</div>
+        <div class="main-tabs">
+            <button class="main-tab-btn active" data-main-tab="data">📊 Данные переписи</button>
+            <button class="main-tab-btn" data-main-tab="events">📜 Исторические события</button>
+        </div>
+        
+        <div id="data-tab" class="main-tab-content active">
+            <div id="table-container" class="table-wrapper">
+                <div class="loading">🔄 Загрузка данных...</div>
+            </div>
+        </div>
+        
+        <div id="events-tab" class="main-tab-content">
+            <div id="events-container" class="events-wrapper">
+                <div class="loading">📜 Загрузка событий...</div>
+            </div>
         </div>
         
         <div class="timeline-slider">
